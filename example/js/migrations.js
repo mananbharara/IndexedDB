@@ -7,13 +7,13 @@ var migrationFunc = function (event) {
     });
   };
 
-  if (!event.oldVersion || event.oldVersion < 4) {
+  if (!event.oldVersion || event.oldVersion < 2) {
     dropDatastores();
     createSampleStore();
   }
 
   function createSampleStore() {
-    var distributionStore = connection.createObjectStore("sample", {"keyPath": "id"});
+    var distributionStore = connection.createObjectStore("sample", {"keyPath": "id", autoIncrement: true});
     distributionStore.createIndex("index_code", "code", {"unique": true});
   }
 };

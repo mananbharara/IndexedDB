@@ -1,3 +1,5 @@
 function AppSetupController(IndexedDB) {
-  console.log('Controller Ready');
+  this.save = function () {
+    IndexedDB.put("sample", this.sample);
+  }
 }

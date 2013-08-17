@@ -28,33 +28,11 @@ angular.module('IndexedDB', []).provider('IndexedDB', function () {
     request.onsuccess = function (event) {
       indexedDBConnection = event.currentTarget.result;
       deferred.resolve();
-      $rootScope.$apply();
+      if (!$rootScope.$$phase) $rootScope.$apply();
     };
 
 
-    function initTransaction(connection, objectStore, completeFunc, transactionMode) {
-      transactionMode = transactionMode ? transactionMode : 'readonly';
-      var transaction = connection.transaction(objectStore, transactionMode);
-      transaction.oncomplete = function (e) {
-        if (completeFunc) {
-          completeFunc(e);
-        }
-        if (!$rootScope.$$phase) $rootScope.$apply();
-      };
-      return transaction;
-    }
-
-    function initRequestCallbacks(request, successFunc, errorFunc) {
-      request.onsuccess = successFunc || function () {
-      };
-
-      request.onerror = function (e) {
-        console.log(e);
-        if (errorFunc) errorFunc(e);
-      };
-    }
-
-    var transaction = function (transactionFunction) {
+    var execute = function (transactionFunction) {
       if (!indexedDBConnection) {
         deferred.promise.then(function () {
           transactionFunction(indexedDBConnection);
@@ -64,29 +42,36 @@ angular.module('IndexedDB', []).provider('IndexedDB', function () {
       }
     };
 
-    var get = function (objectStore, operationKey, successFunc, errorFunc, completeFunc) {
-      thisService.transaction(function (connection) {
-        var transaction = initTransaction(connection, objectStore, completeFunc);
+    function getTransaction(connection, objectStore, mode, successFunc, errorFunc) {
+      var transaction = connection.transaction(objectStore, mode);
+      transaction.oncomplete = function (e) {
+        if (successFunc) successFunc(e);
+        if (!$rootScope.$$phase) $rootScope.$apply();
+      };
+      transaction.onerror = function (e) {
+        if (errorFunc) errorFunc(e);
+        if (!$rootScope.$$phase) $rootScope.$apply();
+      };
+      return transaction;
+    }
 
-        var request = transaction.objectStore(objectStore).get(operationKey);
-
-        initRequestCallbacks(request, successFunc, errorFunc);
+    var get = function (objectStore, operationKey, successFunc, errorFunc) {
+      execute(function (connection) {
+        var transaction = getTransaction(connection, objectStore, "readonly", successFunc, errorFunc);
+        transaction.objectStore(objectStore).get(operationKey);
       });
     };
 
-    var put = function (objectStore, data, successFunc, errorFunc, completeFunc) {
-      thisService.transaction(function (connection) {
-        var transaction = initTransaction(connection, objectStore, completeFunc, 'readwrite');
-
-        var request = transaction.objectStore(objectStore).put(data);
-
-        initRequestCallbacks(request, successFunc, errorFunc);
+    var put = function (objectStore, data, successFunc, errorFunc) {
+      execute(function (connection) {
+        var transaction = getTransaction(connection, objectStore, "readwrite", successFunc, errorFunc);
+        transaction.objectStore(objectStore).put(data);
       });
 
     };
 
     return {
-      transaction: transaction,
+      execute: execute,
       get: get,
       put: put
     }
